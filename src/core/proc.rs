@@ -24,22 +24,26 @@ impl Builder {
     }
 
     pub fn new_var_(&mut self) -> Id {
-        let k = Id { data: self.spec.num_unique_vars as usize, description: None };
-        self.add_var(Constraint::NewVar(k));
+        // let k = Id { data: self.spec.num_unique_vars as usize, description: None };
+        let id = self.spec.num_unique_vars as usize;
+        let k = Id::new(id);
+        self.add_var(Constraint::NewVar(k.clone()));
         self.spec.num_unique_vars += 1;
         k
     }
 
-    pub fn new_var_named_(&mut self, s: String) -> Id {
-        let k = Id { data: self.spec.num_unique_vars as usize, description: Some(s)};
-        self.add_var(Constraint::NewVar(k));
+    pub fn new_var_named_(&mut self, s: &str) -> Id {
+        // let k = Id { data: self.spec.num_unique_vars as usize, description: Some(s)};
+        let id = self.spec.num_unique_vars as usize;
+        let k = Id::new_named(id, String::from(s));
+        self.add_var(Constraint::NewVar(k.clone()));
         self.spec.num_unique_vars += 1;
         k
     }
 
     pub fn new_var_as_const_(&mut self, c: Number) -> Id {
         let a = self.new_var_();
-        self.const_(a, c);
+        self.const_(a.clone(), c.clone());
         a
         // let k = Id { data: self.spec.num_unique_vars as usize };
         // self.add_var(Var::NewVar(k));

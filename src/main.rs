@@ -39,20 +39,22 @@ fn main() {
 
     let bg = Rectangle::new(&mut builder);
     let circle = Circle::new(&mut builder);
-    let square = Rectangle::new(&mut builder);
+    let rect = Rectangle::new(&mut builder);
 
     let c1 =builder.new_var_as_const_(Number::from_int(400));
-    builder.eq_(bg.width, c1);
+    builder.eq_(bg.width.clone(), c1);
     let c2 =builder.new_var_as_const_(Number::from_int(400));
-    builder.eq_(bg.height, c2);
-    // builder.eq_(circle.center_x(), bg.center_x());
-    builder.eq_val_(circle.center_y(), bg.center_y());
+    builder.eq_(bg.height.clone(), c2);
+
 
     // let g = Group(
     //     [bg, square, circle],
     //     [
     //     // circle is centered
     //     circ.bounds.center == bg.bounds.center,
+
+    builder.eq_val_(circle.center_x(), bg.center_x());
+    builder.eq_val_(circle.center_y(), bg.center_y());
 
     //     // circle diameter is 1/2 of canvas width
     //     2*circ.radius == width/2,
@@ -62,6 +64,7 @@ fn main() {
 
     //     // rectangle is a square
     //     rect.width == rect.height,
+    builder.eq_(rect.height.clone(), rect.width.clone());
 
     //     // rectangle is circumscribed
     //     rect.width == circ.radius*2**0.5

@@ -1,6 +1,9 @@
+#![allow(dead_code)]
+
 use crate::core::geometry::Number;
 use std;
 pub use slotmap::{Key, new_key_type};
+use std::hash::{Hash, Hasher};
 
 #[derive(Debug)]
 pub enum Error {
@@ -10,31 +13,65 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+
+#[derive(Debug, Clone)]
 pub struct Id {
+    // we will implement the PartialEq, Eq and hash to only consider the `data` field for hash.
     pub data: usize,
     pub description: Option<String>,
 }
 
+impl PartialEq for Id {
+    fn eq(&self, other: &Self) -> bool {
+        self.data == other.data
+        // match (self, other) {
+        //     (&Left(ref a), &Left(ref b)) => a == b,
+        //     (&Right(ref a), &Right(ref b)) => a == b,
+        //     _ => false,
+        // }
+    }
+}
+impl Eq for Id { }
+
+impl Hash for Id {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.data.hash(state);
+    }
+}
+
+impl Id {
+    pub fn new(id: usize) -> Self {
+        Id {
+            data: id,
+            description: None 
+        }
+    }
+
+    pub fn new_named(id: usize, s: String) -> Self {
+        Id {
+            data: id,
+            description: Some(s) 
+        }
+    }
+}
+
 impl std::fmt::Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if let Some(s) = self.description {
+        if let Some(s) = &self.description {
             write!(f, "\"{}\"{}", s, self.data.to_string())
-
         } else{
             write!(f, "{}", self.data.to_string())
         }
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub enum Operator{
     Add,
     Sub,
 }
 
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub enum VarType{
     Undefined,
     Terminal,
@@ -81,11 +118,11 @@ impl Var {
         }
     }
 
-    pub fn from_id(id: Id) -> Var {
+    pub fn from_id(id: &Id) -> Var {
         Var {
             var_type: VarType::Terminal,
             terminal_var: Some(TerminalVar {
-                id: id
+                id: id.clone()
             }),
             intermediate_var: None,
         }
@@ -102,12 +139,42 @@ pub enum Constraint {
     // Add(Id,Id),
 }
 
+impl std::fmt::Display for Constraint {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match &self {
+            Constraint::Eq(id1, id2) =>  {
+                write!(f, "Id {} == Id {}", id1, id2)
+            }
+            Constraint::NewVar(id) =>  {
+                write!(f, "New Var: {}", id)
+            }
+            Constraint::Const(id, n) =>  {
+                write!(f, "Set {} to const {}", id, n)
+            }
+            Constraint::EqualVar(v1, v2) =>  {
+                write!(f, "Var {:#?} == Var {:#?}", v1, v2)
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Spec {
     pub constraints: Vec<Constraint>,
     pub num_constraints: usize,
     // pub vars: Vec<Var>,
     pub num_unique_vars: usize,
+}
+
+impl std::fmt::Display for Spec {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "# of unique vars: {}\n", self.num_constraints).unwrap();
+        write!(f, "# of constraints: {}\n", self.num_constraints).unwrap();
+        for c in self.constraints.iter() {
+            write!(f, "{}\n", c).unwrap();
+        }
+        Ok(())
+    }
 }
 
 impl Spec {

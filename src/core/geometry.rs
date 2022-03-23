@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 
 use crate::core::shape::*;
 use crate::core::data::*;
@@ -82,13 +83,13 @@ impl Circle {
 
 impl Circle {
     pub fn center_x(&self) -> Var {
-        let l = Var::from_id(self.x);
-        let r = Var::from_id(self.radius);
+        let l = Var::from_id(&self.x);
+        let r = Var::from_id(&self.radius);
         Var::new(Operator::Add, l, r)
     }
     pub fn center_y(&self) -> Var {
-        let l = Var::from_id(self.y);
-        let r = Var::from_id(self.radius);
+        let l = Var::from_id(&self.y);
+        let r = Var::from_id(&self.radius);
         Var::new(Operator::Add, l, r)
     }
 }
@@ -117,7 +118,8 @@ pub struct Rectangle {
 impl Rectangle {
     pub fn new(builder: &mut Builder) -> Self {
         Rectangle {
-            x: builder.new_var_(),
+            x: builder.new_var_named_("rectangle"),
+            // x: builder.new_var_(),
             y: builder.new_var_(),
             width: builder.new_var_(),
             height: builder.new_var_(),
@@ -128,13 +130,13 @@ impl Rectangle {
 
 impl Rectangle {
     pub fn center_x(&self) -> Var {
-        let l = Var::from_id(self.x);
-        let r = Var::from_id(self.width);
+        let l = Var::from_id(&self.x);
+        let r = Var::from_id(&self.width);
         Var::new(Operator::Add, l, r)
     }
     pub fn center_y(&self) -> Var {
-        let l = Var::from_id(self.y);
-        let r = Var::from_id(self.height);
+        let l = Var::from_id(&self.y);
+        let r = Var::from_id(&self.height);
         Var::new(Operator::Add, l, r)
     }
 }
