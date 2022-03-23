@@ -1,0 +1,15 @@
+[package]
+name = "houjing"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+enum_dispatch = "0.3.8"
+slotmap = "1.0.2"
+z3 = {version="0.11.2", features = ["static-link-z3"]}
+log = "0.4"
+lazy_static = "1"
+env_logger = "0.6"
+semver = "0.9"
