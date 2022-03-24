@@ -1,9 +1,11 @@
 #![allow(dead_code)]
 
-use crate::core::geometry::Number;
 use std;
+use num::Integer;
 pub use slotmap::{Key, new_key_type};
 use std::hash::{Hash, Hasher};
+// use num_rational::Ratio;
+use num_rational::*;
 
 #[derive(Debug)]
 pub enum Error {
@@ -13,6 +15,105 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+pub trait ToVar {
+    fn to_var(&self) -> Var;
+}
+
+impl ToVar for i32 {
+    fn to_var(&self) -> Var {
+        Number::from(*self).to_var()
+    }
+}
+
+impl ToVar for f64 {
+    fn to_var(&self) -> Var {
+    
+        // DISCLAIMER:
+        // this code adopted from Rosetta Code for transforming a float into a rational
+        // https://rosettacode.org/mw/index.php?title=Convert_decimal_number_to_rational&action=edit&section=52
+
+        let mut n = *self;
+        assert!(n.is_finite());
+        let flag_neg  = n < 0.0;
+        if flag_neg { n = n*(-1.0) }
+        if n < std::f64::MIN_POSITIVE { 
+            // return [0,1] 
+            return Number::new(0,1).to_var()
+        }
+        if (n - n.round()).abs() < std::f64::EPSILON { 
+            return Number::new(n.round() as i32 ,1).to_var()
+        }
+        let mut a : i32 = 0;
+        let mut b : i32 = 1;
+        let mut c : i32 = n.ceil() as i32;
+        let mut d : i32 = 1;
+        let aux1 = i32::max_value()/2;
+        while c < aux1  && d < aux1 {
+            let aux2 : f64 = (a as f64 + c as f64)/(b as f64 + d as f64);
+            if (n - aux2).abs() < std::f64::EPSILON { break } 
+            if n > aux2 { 
+                a = a + c;
+                b = b + d;
+            } else {
+                c = a + c;
+                d = b + d;
+            }
+        }
+        let gcd = (a+c).gcd(&(b+d));
+        if flag_neg { 
+            Number::new(-(a + c)/gcd, (b + d)/gcd).to_var()
+        } else {
+            Number::new((a + c)/gcd, (b + d)/gcd).to_var()
+        }
+      
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Number {
+    // representing a real number = num / den
+    pub num: i32,
+    pub den: i32,
+    // pub data: f,
+}
+
+impl From<i32> for Number {
+    fn from(i: i32) -> Self {
+        Number::new(i,1)
+    }
+}
+
+// impl From<f32> for Number {
+//     fn from(i: f32) -> Self {
+//         Number::new(f64::from(i))
+//     }
+// }
+
+impl Number {
+    pub fn new(n: i32, d: i32) -> Self {
+        Number {
+            num: n,
+            den: d
+        }
+    }
+
+    pub fn to_var(&self) -> Var {
+        Var {
+            var_type: VarType::Constant,
+            terminal_var: None,
+            intermediate_var: None,
+            constant_var: Some(ConstantVar {
+                val: self.clone()
+            }),
+        }
+    }
+}
+
+impl std::fmt::Display for Number {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:.2} = {}/{}", (self.num/self.den) as f32, self.num, self.den)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Id {
@@ -41,16 +142,10 @@ impl Hash for Id {
 
 impl Id {
     pub fn new(id: usize) -> Self {
-        Id {
-            data: id,
-            description: None 
-        }
+        Id { data: id, description: None }
     }
-
     pub fn new_named(id: usize, s: String) -> Self {
-        Id {
-            data: id,
-            description: Some(s) 
+        Id { data: id, description: Some(s) 
         }
     }
 }
@@ -65,17 +160,33 @@ impl std::fmt::Display for Id {
     }
 }
 
+impl Id {
+    pub fn to_var(&self) -> Var {
+        Var {
+            var_type: VarType::Terminal,
+            terminal_var: Some(TerminalVar {
+                id: self.clone()
+            }),
+            intermediate_var: None,
+            constant_var: None,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum Operator{
     Add,
     Sub,
+    Div,
+    Mul,
 }
 
 #[derive(Clone, Debug)]
 pub enum VarType{
     Undefined,
     Terminal,
-    Intermediate
+    Intermediate,
+    Constant 
 }
 
 #[derive(Clone, Debug)]
@@ -91,13 +202,29 @@ pub struct TerminalVar {
 }
 
 #[derive(Clone, Debug)]
+pub struct ConstantVar {
+    pub val: Number, 
+}
+
+#[derive(Clone, Debug)]
 pub struct Var {
     pub var_type: VarType,
     pub terminal_var: Option<TerminalVar>,
     pub intermediate_var: Option<IntermediateVar>,
+    pub constant_var: Option<ConstantVar>,
 }
 
+
 impl Var {
+    pub fn empty() -> Var {
+        Var {
+            var_type: VarType::Undefined,
+            terminal_var: None,
+            intermediate_var: None,
+            constant_var: None,
+        }
+    }
+
     pub fn new(op: Operator, l: Var, r: Var) -> Var {
         Var {
             var_type: VarType::Intermediate,
@@ -107,44 +234,42 @@ impl Var {
                 l: Box::new(l),
                 r: Box::new(r) 
             }),
+            constant_var: None,
         }
     }
+}
 
-    pub fn empty() -> Var {
-        Var {
-            var_type: VarType::Undefined,
-            terminal_var: None,
-            intermediate_var: None,
-        }
+impl std::ops::Add<Var> for Var {
+    type Output = Var;
+    fn add(self, _rhs: Var) -> Var {
+        Var::new(Operator::Add, self, _rhs)
     }
+}
 
-    pub fn from_id(id: &Id) -> Var {
-        Var {
-            var_type: VarType::Terminal,
-            terminal_var: Some(TerminalVar {
-                id: id.clone()
-            }),
-            intermediate_var: None,
-        }
+impl std::ops::Div<Var> for Var {
+    type Output = Var;
+    fn div(self, _rhs: Var) -> Var {
+        Var::new(Operator::Div, self, _rhs)
+    }
+}
+
+impl std::ops::Mul<Var> for Var {
+    type Output = Var;
+    fn mul(self, _rhs: Var) -> Var {
+        Var::new(Operator::Mul, self, _rhs)
     }
 }
 
 #[derive(Clone, Debug)]
 pub enum Constraint {
-    Eq(Id,Id),
     NewVar(Id),
     Const(Id, Number),
     EqualVar(Var, Var)
-    // Add(Id,Id),
-    // Add(Id,Id),
 }
 
 impl std::fmt::Display for Constraint {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match &self {
-            Constraint::Eq(id1, id2) =>  {
-                write!(f, "Id {} == Id {}", id1, id2)
-            }
             Constraint::NewVar(id) =>  {
                 write!(f, "New Var: {}", id)
             }
@@ -196,16 +321,3 @@ impl Spec {
         }
     }
 }
-
-// impl Shape for Circle {
-//     fn bound(&self) -> Bound {
-//         Bound {
-//             left: self.x - self.radius,
-//             right: self.x + self.radius,
-//             top: self.y - self.radius,
-//             bottom: self.y + self.radius,
-//         }
-//     }
-
-//     fn solve(&self) {}
-// }

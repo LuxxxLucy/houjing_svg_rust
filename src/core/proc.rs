@@ -1,6 +1,5 @@
 use crate::core::data::*;
 use crate::core::data::Constraint;
-use crate::core::geometry::Number;
 
 pub struct Builder {
     spec: Spec,
@@ -33,34 +32,11 @@ impl Builder {
     }
 
     pub fn new_var_named_(&mut self, s: &str) -> Id {
-        // let k = Id { data: self.spec.num_unique_vars as usize, description: Some(s)};
         let id = self.spec.num_unique_vars as usize;
         let k = Id::new_named(id, String::from(s));
         self.add_var(Constraint::NewVar(k.clone()));
         self.spec.num_unique_vars += 1;
         k
-    }
-
-    pub fn new_var_as_const_(&mut self, c: Number) -> Id {
-        let a = self.new_var_();
-        self.const_(a.clone(), c.clone());
-        a
-        // let k = Id { data: self.spec.num_unique_vars as usize };
-        // self.add_var(Var::NewVar(k));
-        // self.spec.num_unique_vars += 1;
-        // k
-    }
-
-    // pub fn Var(&mut self ) {
-    //     self.add_constraint(Constraint::Const(a, b));
-    // }
-
-    pub fn const_<'a>(&mut self, a: Id, b: Number) {
-        self.add_constraint(Constraint::Const(a, b));
-    }
-
-    pub fn eq_(&mut self, a: Id, b: Id) {
-        self.add_constraint(Constraint::Eq(a, b));
     }
 
     pub fn eq_val_(&mut self, a: Var, b: Var) {
@@ -71,7 +47,6 @@ impl Builder {
         Spec::new(
             self.spec.constraints.clone(),
             self.spec.num_constraints,
-            // vars: self.spec.vars.clone(),
             self.spec.num_unique_vars,
         )
     } 

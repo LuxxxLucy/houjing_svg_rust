@@ -1,5 +1,4 @@
 use crate::core::data::{*};
-use crate::core::geometry::Number;
 use z3;
 use z3::ast::{Ast, Real, Bool};
 pub use slotmap::{Key, new_key_type, SlotMap, DefaultKey};
@@ -9,27 +8,6 @@ use std::collections::HashMap;
 // trait Make {
 //     fn make(&self) -> Real<'a>;
 // }
-
-// impl Make
-//   // let f = match c {
-//         //     Constraint::NewVar(id) => {
-//         //         let v = z3::ast::Real::new_const(context, id.to_string());
-//         //         let k = slot_map.insert(v);
-//         //         keys.insert(id.to_string(), k);
-//         //         Bool::from_bool(context, true)
-//         //     }
-//         //     Constraint::Const(id, value) => { 
-//         //         // z3::ast::Real 
-//         //         let v = &slot_map[keys[&id.to_string()]];
-//         //         let const_value = value.to_z3_real(context);
-//         //         v._eq(&const_value)
-//         //     }
-//         //     Constraint::Eq(id1, id2) => {
-//         //         let v1 = &slot_map[keys[&id1.to_string()]];
-//         //         let v2 = &slot_map[keys[&id2.to_string()]];
-//         //         v1._eq(&v2)
-//         //     }
-//         // };
 
 impl<'a> Number {
     pub fn to_z3_real(&self, context: &'a z3::Context) -> Real<'a> {
@@ -58,16 +36,22 @@ pub fn get_value<'a>(var: &Var, context: &'a z3::Context, sm: &'a SlotMap<Defaul
             // r = sm[r];
             match v.op {
                 Operator::Add => { 
-                    // &l.add(r) 
-                    // &z3::ast::Real::<'a>::add(context,&[l,r])
                     z3::ast::Real::<'a>::add(context,&[&l,&r])
                 }
                 Operator::Sub => { 
-                    // &l.add(r) 
-                    // &z3::ast::Real::<'a>::add(context,&[l,r])
-                    z3::ast::Real::<'a>::add(context,&[&l,&r])
+                    z3::ast::Real::<'a>::sub(context,&[&l,&r])
+                }
+                Operator::Div => { 
+                    l.div(&r)
+                }
+                Operator::Mul=> { 
+                    z3::ast::Real::<'a>::mul(context,&[&l,&r])
                 }
             }
+        }
+        VarType::Constant => {
+            let constant = var.constant_var.as_ref().unwrap(); 
+            constant.val.to_z3_real(context)
         }
     }
 }
@@ -104,7 +88,7 @@ pub fn synthesize(
                     keys.insert(id.clone(), k);
             }
             Constraint::Const(_, _) => { }
-            Constraint::Eq(_, _) => { }
+            // Constraint::Eq(_, _) => { }
             Constraint::EqualVar(_, _) => { }
         };
     }
@@ -116,11 +100,6 @@ pub fn synthesize(
     // for c in spec.constraints {
         let f = match c {
             Constraint::NewVar(_) => {
-                // {
-                    // let v = z3::ast::Real::new_const(context, id.to_string());
-                    // let k = slot_map.insert(v);
-                    // keys.insert(id.to_string(), k);
-                // }
                 Bool::from_bool(context, true)
             }
             Constraint::Const(id, value) => { 
@@ -129,25 +108,9 @@ pub fn synthesize(
                 let const_value = value.to_z3_real(context);
                 v._eq(&const_value)
             }
-            Constraint::Eq(id1, id2) => {
-                // let v = Var::from_id(*id1);
-                // let v1 = get_value(v, &context, &slot_map, &keys);
-                // let v = Var::from_id(*id2);
-                // let v2 = get_value(v, &context, &slot_map, &keys);
-
-                let v1 = &slot_map[keys[&id1]];
-                let v2 = &slot_map[keys[&id2]];
-
-                // let v1 = id_to_val(&slot_map, &keys, id1);
-                // let v2 = id_to_val(&slot_map, &keys, id2);
-                v1._eq(&v2)
-            }
             Constraint::EqualVar(var1, var2) => {
                 let v1 = get_value(var1, &context, &slot_map, &keys);
                 let v2 = get_value(var2, &context, &slot_map, &keys);
-
-                // let v1 = id_to_val(&slot_map, &keys, id1);
-                // let v2 = id_to_val(&slot_map, &keys, id2);
                 v1._eq(&v2)
             }
         };
@@ -165,8 +128,9 @@ pub fn synthesize(
         z3::SatResult::Sat => {
             let model = solver.get_model().unwrap();
             println!("number of unique vars {}", spec.num_unique_vars);
-            for id in 0..spec.num_unique_vars {
-                let k = keys[&Id::new(id)];
+            for idx in 0..spec.num_unique_vars {
+                let id = Id::new(idx);
+                let k = keys[&id];
                 let v = &slot_map[k];
                 // let tmp = model.eval(v, true).unwrap().as_real();
                 let tmp = model.eval(v, true).unwrap().as_real();

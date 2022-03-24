@@ -2,7 +2,7 @@ mod core;
 mod synthesis;
 use crate::core::geometry::{Circle, Rectangle};
 use crate::core::proc::Builder;
-use crate::core::geometry::Number;
+use crate::core::data::*;
 use crate::synthesis::solver;
 use crate::solver::synthesize;
 
@@ -32,19 +32,16 @@ fn main() {
 
     // let library = Library::brahma_std();
     let mut builder = Builder::new();
-    // let a = builder.new_var_as_const_(Number::from_int(2));
-    // // builder.const_(a, Number::from_int(2));
     // let b = builder.new_var_();
     // builder.eq_(a,b);
 
     let bg = Rectangle::new(&mut builder);
     let circle = Circle::new(&mut builder);
     let rect = Rectangle::new(&mut builder);
-
-    let c1 =builder.new_var_as_const_(Number::from_int(400));
-    builder.eq_(bg.width.clone(), c1);
-    let c2 =builder.new_var_as_const_(Number::from_int(400));
-    builder.eq_(bg.height.clone(), c2);
+    builder.eq_val_(bg.width.to_var(), 400.to_var());
+    // builder.add_constraint( make!(bg.width.to_var() == 400.to_var()) );
+    builder.eq_val_(bg.height.to_var(), 400.to_var());
+    // builder.add_constraint(bg.height.to_var() == 400.to_var());
 
 
     // let g = Group(
@@ -58,13 +55,17 @@ fn main() {
 
     //     // circle diameter is 1/2 of canvas width
     //     2*circ.radius == width/2,
+    builder.eq_val_(circle.radius.to_var() * 2.to_var(), bg.width.to_var() / 2.to_var());
 
     //     // rectangle is centered on circle
     //     rect.bounds.center == circ.bounds.center,
+    builder.eq_val_(circle.center_x(), rect.center_x());
+    builder.eq_val_(circle.center_y(), rect.center_y());
 
     //     // rectangle is a square
     //     rect.width == rect.height,
-    builder.eq_(rect.height.clone(), rect.width.clone());
+    builder.eq_val_(rect.height.to_var(), rect.width.to_var());
+    builder.eq_val_(rect.width.to_var(), circle.radius.to_var() * 2_f64.sqrt().to_var());
 
     //     // rectangle is circumscribed
     //     rect.width == circ.radius*2**0.5
