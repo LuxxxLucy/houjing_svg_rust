@@ -29,67 +29,61 @@ fn main() {
     //     square.width |Eq| circle.radius * SQRT_2
     // ])
 
-
-    // let library = Library::brahma_std();
     let mut builder = Builder::new();
-    // let b = builder.new_var_();
-    // builder.eq_(a,b);
 
     let bg = Rectangle::new(&mut builder);
     let circle = Circle::new(&mut builder);
     let rect = Rectangle::new(&mut builder);
-    builder.eq_val_(bg.width.to_var(), 400.to_var());
-    // builder.add_constraint( make!(bg.width.to_var() == 400.to_var()) );
-    builder.eq_val_(bg.height.to_var(), 400.to_var());
-    // builder.add_constraint(bg.height.to_var() == 400.to_var());
 
+    // builder.shapes.add
+    builder.eq_val_(bg.x.clone(), 0.to_var());
+    builder.eq_val_(bg.y.clone(), 0.to_var());
 
-    // let g = Group(
-    //     [bg, square, circle],
-    //     [
-    //     // circle is centered
-    //     circ.bounds.center == bg.bounds.center,
+    builder.eq_val_(bg.width.clone(), 400.to_var());
+    builder.eq_val_(bg.height.clone(), 400.to_var());
 
     builder.eq_val_(circle.center_x(), bg.center_x());
     builder.eq_val_(circle.center_y(), bg.center_y());
 
-    //     // circle diameter is 1/2 of canvas width
-    //     2*circ.radius == width/2,
-    builder.eq_val_(circle.radius.to_var() * 2.to_var(), bg.width.to_var() / 2.to_var());
+    builder.eq_val_(circle.radius.clone() * 2.to_var(), bg.width.clone() / 2.to_var());
 
-    //     // rectangle is centered on circle
-    //     rect.bounds.center == circ.bounds.center,
     builder.eq_val_(circle.center_x(), rect.center_x());
     builder.eq_val_(circle.center_y(), rect.center_y());
 
-    //     // rectangle is a square
-    //     rect.width == rect.height,
-    builder.eq_val_(rect.height.to_var(), rect.width.to_var());
-    builder.eq_val_(rect.width.to_var(), circle.radius.to_var() * 2_f64.sqrt().to_var());
+    builder.eq_val_(rect.height.clone(), rect.width.clone());
+    builder.eq_val_(rect.width.clone(), circle.radius.clone() * 2_f64.sqrt().to_var());
 
-    //     // rectangle is circumscribed
-    //     rect.width == circ.radius*2**0.5
-    //     ]
-    // )
+    let mut spec = builder.all();
+    let _ = synthesize(&mut spec);
 
-    // let render = Renderer(g);
+    for var in spec.vars.iter_mut() {
+        let v = var.terminal_var.as_ref().unwrap();
+        // println!("Id {}: {}", &v.id, &v.val);
+        // println!("{}", v)
+        println!("{}", v.val.as_ref().unwrap())
+    }
 
-    // let _ = builder.mul(a, b);
-    let spec = builder.all();
+    // println!("{}", spec);
+    // let d = drawer::new(result);
+    // bg.forward(&spec);
+    spec.draw();
 
-    // g.solve()
-    // let mut p = synthesis::Synthesizer::synthesize(&context, &spec).unwrap();
-    // Synthesizer::synthesize(&context, &spec);
-    let _ = synthesize(&spec);
-    // synthesizer.synthesize();
-    // p.dce();
-    // println!("{}", p.to_string());
+    // let data = Data::new()
+    //     .move_to((10, 10))
+    //     .line_by((0, 50))
+    //     .line_by((50, 0))
+    //     .line_by((0, -50))
+    //     .close();
 
-    // println!("{:#?}", model);
-    // println!("x:{:#?}", model.eval(&x, true).unwrap().as_real().unwrap());
-    // println!("{:#?}", y.as_f32().unwrap());
+    // let path = Path::new()
+    //     .set("fill", "none")
+    //     .set("stroke", "black")
+    //     .set("stroke-width", 3)
+    //     .set("d", data);
 
-
+    // circle.draw(&d);
+    // rect.draw(&d);
+    // d.finish("output.svg")
     // canvas = Canvas(g, WIDTH, HEIGHT, bg_color="#e0e0e0")
     // canvas.save_png("gallery/circle_and_square.png")
     // canvas.save_svg("gallery/circle_and_square.svg")

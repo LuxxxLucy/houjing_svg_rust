@@ -1,11 +1,13 @@
 #![allow(dead_code)]
 
+use crate::core::shape::Shape;
+
 use std;
 use num::Integer;
 pub use slotmap::{Key, new_key_type};
 use std::hash::{Hash, Hasher};
 // use num_rational::Ratio;
-use num_rational::*;
+// use num_rational::*;
 
 #[derive(Debug)]
 pub enum Error {
@@ -19,29 +21,32 @@ pub trait ToVar {
     fn to_var(&self) -> Var;
 }
 
+pub trait Eval {
+    fn eval(&self) -> Var;
+}
+
 impl ToVar for i32 {
     fn to_var(&self) -> Var {
         Number::from(*self).to_var()
     }
 }
 
-impl ToVar for f64 {
-    fn to_var(&self) -> Var {
-    
+impl From<f64> for Number {
+    fn from(n: f64) -> Number {
         // DISCLAIMER:
         // this code adopted from Rosetta Code for transforming a float into a rational
         // https://rosettacode.org/mw/index.php?title=Convert_decimal_number_to_rational&action=edit&section=52
 
-        let mut n = *self;
+        let mut n = n;
         assert!(n.is_finite());
         let flag_neg  = n < 0.0;
         if flag_neg { n = n*(-1.0) }
         if n < std::f64::MIN_POSITIVE { 
             // return [0,1] 
-            return Number::new(0,1).to_var()
+            return Number::new(0,1)
         }
         if (n - n.round()).abs() < std::f64::EPSILON { 
-            return Number::new(n.round() as i32 ,1).to_var()
+            return Number::new(n.round() as i32 ,1)
         }
         let mut a : i32 = 0;
         let mut b : i32 = 1;
@@ -61,11 +66,18 @@ impl ToVar for f64 {
         }
         let gcd = (a+c).gcd(&(b+d));
         if flag_neg { 
-            Number::new(-(a + c)/gcd, (b + d)/gcd).to_var()
+            Number::new(-(a + c)/gcd, (b + d)/gcd)
         } else {
-            Number::new((a + c)/gcd, (b + d)/gcd).to_var()
+            Number::new((a + c)/gcd, (b + d)/gcd)
         }
       
+    }
+}
+
+impl ToVar for f64 {
+    fn to_var(&self) -> Var {
+        let n = Number::from(*self);
+        n.to_var()
     }
 }
 
@@ -153,7 +165,7 @@ impl Id {
 impl std::fmt::Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(s) = &self.description {
-            write!(f, "\"{}\"{}", s, self.data.to_string())
+            write!(f, "{} with name \"{}\"", self.data.to_string(), s)
         } else{
             write!(f, "{}", self.data.to_string())
         }
@@ -165,7 +177,8 @@ impl Id {
         Var {
             var_type: VarType::Terminal,
             terminal_var: Some(TerminalVar {
-                id: self.clone()
+                id: self.clone(),
+                val: None
             }),
             intermediate_var: None,
             constant_var: None,
@@ -181,12 +194,13 @@ pub enum Operator{
     Mul,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum VarType{
     Undefined,
     Terminal,
     Intermediate,
-    Constant 
+    Constant,
+    Inferred,
 }
 
 #[derive(Clone, Debug)]
@@ -198,7 +212,8 @@ pub struct IntermediateVar {
 
 #[derive(Clone, Debug)]
 pub struct TerminalVar {
-    pub id: Id
+    pub id: Id,
+    pub val: Option<Number>,
 }
 
 #[derive(Clone, Debug)]
@@ -239,6 +254,17 @@ impl Var {
     }
 }
 
+// impl From<Id> for Var {
+//     fn from(id: Id) -> Self {
+//         Var {
+//             var_type: VarType::Terminal,
+//             terminal_var: Some(TerminalVar{ id: id, val: None }),
+//             intermediate_var: None,
+//             constant_var: None,
+//         }
+//     }
+// }
+
 impl std::ops::Add<Var> for Var {
     type Output = Var;
     fn add(self, _rhs: Var) -> Var {
@@ -262,7 +288,6 @@ impl std::ops::Mul<Var> for Var {
 
 #[derive(Clone, Debug)]
 pub enum Constraint {
-    NewVar(Id),
     Const(Id, Number),
     EqualVar(Var, Var)
 }
@@ -270,9 +295,9 @@ pub enum Constraint {
 impl std::fmt::Display for Constraint {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match &self {
-            Constraint::NewVar(id) =>  {
-                write!(f, "New Var: {}", id)
-            }
+            // Constraint::NewVar(id) =>  {
+            //     write!(f, "New Var: {}", id)
+            // }
             Constraint::Const(id, n) =>  {
                 write!(f, "Set {} to const {}", id, n)
             }
@@ -283,12 +308,13 @@ impl std::fmt::Display for Constraint {
     }
 }
 
-#[derive(Clone, Debug)]
+
 pub struct Spec {
     pub constraints: Vec<Constraint>,
     pub num_constraints: usize,
-    // pub vars: Vec<Var>,
+    pub vars: Vec<Var>,
     pub num_unique_vars: usize,
+    pub nodes: Vec<Box<dyn Shape>>,
 }
 
 impl std::fmt::Display for Spec {
@@ -303,12 +329,13 @@ impl std::fmt::Display for Spec {
 }
 
 impl Spec {
-    pub fn new(c: Vec<Constraint>, n_c: usize, n_u_v: usize) -> Self {
+    pub fn new(c: Vec<Constraint>, n_c: usize, v: Vec<Var>, n_u_v: usize) -> Self {
         Spec {
             constraints: c,
             num_constraints: n_c,
-            // vars: vec![],
+            vars: v,
             num_unique_vars: n_u_v,
+            nodes: vec![]
         }
     }
 
@@ -316,8 +343,10 @@ impl Spec {
         Spec {
             constraints: vec![],
             num_constraints: 0,
-            // vars: vec![],
+            vars: vec![],
             num_unique_vars: 0,
+            nodes: vec![]
         }
     }
+
 }

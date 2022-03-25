@@ -3,12 +3,14 @@ use crate::core::data::Constraint;
 
 pub struct Builder {
     spec: Spec,
+    // components: Vec<Box<dyn Shape>>,
 }
 
 impl Builder {
     pub fn new() -> Self {
         Builder {
-            spec: Spec::empty()
+            spec: Spec::empty(),
+            // components: Vec<Box<dyn Shape>>::new()
         }
     }
 
@@ -17,26 +19,32 @@ impl Builder {
         self.spec.num_constraints += 1;
     }
 
-    pub fn add_var(&mut self, c: Constraint) {
-        // self.spec.vars.push(c);
-        self.add_constraint(c);
+    // pub fn add_var(&mut self, c: dyn Shape) {
+    //     // self.components.push(Box::new(c));
+    // }
+
+    pub fn add_var(&mut self, c: Var) {
+        self.spec.vars.push(c);
+        // self.add_constraint(c);
     }
 
-    pub fn new_var_(&mut self) -> Id {
+    pub fn new_var_(&mut self) -> Var {
         // let k = Id { data: self.spec.num_unique_vars as usize, description: None };
         let id = self.spec.num_unique_vars as usize;
         let k = Id::new(id);
-        self.add_var(Constraint::NewVar(k.clone()));
+        let var = k.to_var();
+        self.add_var(var.clone());
         self.spec.num_unique_vars += 1;
-        k
+        var 
     }
 
-    pub fn new_var_named_(&mut self, s: &str) -> Id {
+    pub fn new_var_named_(&mut self, s: &str) -> Var {
         let id = self.spec.num_unique_vars as usize;
         let k = Id::new_named(id, String::from(s));
-        self.add_var(Constraint::NewVar(k.clone()));
+        let var = k.to_var();
+        self.add_var(var.clone());
         self.spec.num_unique_vars += 1;
-        k
+        var 
     }
 
     pub fn eq_val_(&mut self, a: Var, b: Var) {
@@ -47,6 +55,7 @@ impl Builder {
         Spec::new(
             self.spec.constraints.clone(),
             self.spec.num_constraints,
+            self.spec.vars.clone(),
             self.spec.num_unique_vars,
         )
     } 

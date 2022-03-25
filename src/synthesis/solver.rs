@@ -19,7 +19,8 @@ pub fn get_value<'a>(var: &Var, context: &'a z3::Context, sm: &'a SlotMap<Defaul
 // -> &'a Real<'a> {
 -> Real<'a> {
     match var.var_type {
-        VarType::Undefined => { panic!(); }
+        VarType::Undefined => { panic!("undefined var!"); }
+        VarType::Inferred => { panic!("inferred var!"); }
         VarType::Terminal => {
             let id = var.terminal_var.as_ref().unwrap().id.clone();
             // &sm[keys[&id.to_string()]]
@@ -58,7 +59,7 @@ pub fn get_value<'a>(var: &Var, context: &'a z3::Context, sm: &'a SlotMap<Defaul
 
 pub fn synthesize(
     // context: &'a z3::Context,
-    spec: &Spec,
+    spec: &mut Spec,
     // library: &Library,
 // ) {
 ) -> Result<usize> {
@@ -66,8 +67,7 @@ pub fn synthesize(
     let mut config = z3::Config::new();
     config.set_model_generation(true);
     let context = &z3::Context::new(&config);
-    let mut synthesizer = Synthesizer::new(context, spec).unwrap();
-    synthesizer.summary();
+    let mut synthesizer = Synthesizer::new(context).unwrap();
     let mut slot_map = SlotMap::<DefaultKey, Real<'_>>::new(); 
     // Slot map stores the variables
 
@@ -80,28 +80,41 @@ pub fn synthesize(
     //         let k = slot_map.insert(v);
     //         keys.insert(id.to_string(), k);
     //     }
-    for c in spec.constraints.iter() {
-        match c {
-            Constraint::NewVar(id) => {
-                    let v = z3::ast::Real::new_const(context, id.to_string());
-                    let k = slot_map.insert(v);
-                    keys.insert(id.clone(), k);
-            }
-            Constraint::Const(_, _) => { }
-            // Constraint::Eq(_, _) => { }
-            Constraint::EqualVar(_, _) => { }
-        };
+    println!("initialize the vars");
+    for c in spec.vars.iter() {
+        println!("{:#?}",&c);
+        if let Some(v) = &c.terminal_var {
+            let id = &v.id;
+            println!("string of id is {}", id.to_string());
+            let v = z3::ast::Real::new_const(context, id.to_string());
+            let k = slot_map.insert(v);
+            keys.insert(id.clone(), k);
+        } else {
+            println!("{:#?}",c);
+        }
+        println!("{:#?}",c);
+        // match c {
+        //     Constraint::NewVar(id) => {
+        //             let v = z3::ast::Real::new_const(context, id.to_string());
+        //             let k = slot_map.insert(v);
+        //             keys.insert(id.clone(), k);
+        //     }
+        //     Constraint::Const(_, _) => { }
+        //     // Constraint::Eq(_, _) => { }
+        //     Constraint::EqualVar(_, _) => { }
+        // };
     }
 
 
+    println!("start solving");
     // declare constraints  
     let mut formulas = Vec::<Bool<'_>>::new();
     for c in spec.constraints.iter() {
     // for c in spec.constraints {
         let f = match c {
-            Constraint::NewVar(_) => {
-                Bool::from_bool(context, true)
-            }
+            // Constraint::NewVar(_) => {
+            //     Bool::from_bool(context, true)
+            // }
             Constraint::Const(id, value) => { 
                 // z3::ast::Real 
                 let v = &slot_map[keys[&id]];
@@ -126,16 +139,23 @@ pub fn synthesize(
         z3::SatResult::Unknown => Err(Error::SynthesisUnknown),
         z3::SatResult::Unsat => Err(Error::SynthesisUnsatisfiable),
         z3::SatResult::Sat => {
+            synthesizer.summary();
             let model = solver.get_model().unwrap();
             println!("number of unique vars {}", spec.num_unique_vars);
-            for idx in 0..spec.num_unique_vars {
-                let id = Id::new(idx);
+            // for idx in 0..spec.num_unique_vars {
+            for var in spec.vars.iter_mut() {
+                assert_eq!(var.var_type, VarType::Terminal);
+                let v = var.terminal_var.as_mut().unwrap();
+                let id = v.id.clone();
                 let k = keys[&id];
-                let v = &slot_map[k];
+                let z3_val = &slot_map[k];
                 // let tmp = model.eval(v, true).unwrap().as_real();
-                let tmp = model.eval(v, true).unwrap().as_real();
+                let tmp = model.eval(z3_val, true).unwrap().as_real();
                 if let Some(val) = tmp {
-                    println!("Id {}: {}", id, val.0/val.1);
+                    // println!("Id {}: {}", id, val.0/val.1);
+                    let val = Number::from( (val.0/val.1) as f64 );
+                    v.val = Some(val);
+                    // println!("Id {}", id);
                 } else {
                     println!("Id {}: not exist", id);
                 }
@@ -158,7 +178,7 @@ where
 pub struct Synthesizer<'a> {
     context: &'a z3::Context,
     // spec: &'a dyn Specification,
-    spec: &'a Spec,
+    // spec: &'a Spec,
     // library: &'a Library,
     // locations: LocationVars<'a>,
     // well_formed_program: Bool<'a>,
@@ -173,7 +193,7 @@ impl<'a> Synthesizer<'a> {
         context: &'a z3::Context,
         // library: &'a Library,
         // spec: &'a dyn Specification,
-        spec: &'a Spec,
+        // spec: &'a Spec,
     ) -> Result<Self> {
         // if library.components.is_empty() {
         //     return Err(Error::NoComponents);
@@ -187,7 +207,7 @@ impl<'a> Synthesizer<'a> {
         Ok(Synthesizer {
             context,
             // library,
-            spec,
+            // spec,
             // locations,
             // well_formed_program,
             // invalid_connections,
@@ -199,7 +219,7 @@ impl<'a> Synthesizer<'a> {
 
     pub fn summary(&self) {
         println!("context {:#?}", self.context);
-        println!("Spec {}", self.spec);
+        // println!("Spec {}", self.spec);
     }
 
     fn solver(&mut self) -> z3::Solver<'a> {

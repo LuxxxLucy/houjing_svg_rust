@@ -1,11 +1,12 @@
-// #![allow(dead_code)]
+#![allow(dead_code)]
 
 use crate::core::data::*;
+use crate::core::shape::Shape;
 use crate::core::proc::Builder;
 
 pub struct Point {
-    x: Id,
-    y: Id,
+    x: Var,
+    y: Var,
 }
 
 impl Point {
@@ -18,62 +19,66 @@ impl Point {
 }
 
 pub struct Circle {
-    pub x: Id,
-    pub y: Id,
-    pub radius: Id,
+    pub x: Var,
+    pub y: Var,
+    pub radius: Var,
 }
 
 impl Circle {
     pub fn new(builder: &mut Builder) -> Self {
         Circle {
-            x: builder.new_var_(),
-            y: builder.new_var_(),
-            radius: builder.new_var_(),
+            x: builder.new_var_named_("circle x"),
+            y: builder.new_var_named_("circle y"),
+            radius: builder.new_var_named_("circle radius"),
         }
     }
 }
 
 impl Circle {
     pub fn center_x(&self) -> Var {
-        self.x.to_var()
+        self.x.clone()
     }
     pub fn center_y(&self) -> Var {
-        self.y.to_var()
+        self.y.clone()
     }
 }
 
 pub struct Rectangle {
-    pub x: Id,
-    pub y: Id,
-    pub width: Id,
-    pub height: Id,
+    pub x: Var,
+    pub y: Var,
+    pub width: Var,
+    pub height: Var,
 }
 
 impl Rectangle {
     pub fn new(builder: &mut Builder) -> Self {
         Rectangle {
-            x: builder.new_var_named_("rectangle"),
+            x: builder.new_var_named_("rectangle x"),
             // x: builder.new_var_(),
-            y: builder.new_var_(),
-            width: builder.new_var_(),
-            height: builder.new_var_(),
+            y: builder.new_var_named_("rectangle y"),
+            width: builder.new_var_named_("rectangle width"),
+            height: builder.new_var_named_("rectangle height"),
         }
     }
 }
 
 impl Rectangle {
     pub fn center_x(&self) -> Var {
-        let l = self.x.to_var();
-        let r = self.width.to_var();
+        let l = self.x.clone();
+        let r = self.width.clone();
         let t = l + r;
         let c = 2.to_var();
         t / c
     }
     pub fn center_y(&self) -> Var {
-        let l = self.y.to_var();
-        let r = self.height.to_var();
+        let l = self.y.clone();
+        let r = self.height.clone();
         let t = l + r;
         let c = 2.to_var();
         t / c
     }
+}
+
+impl Shape for Rectangle {
+
 }
