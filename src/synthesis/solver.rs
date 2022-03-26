@@ -4,15 +4,19 @@ use z3::ast::{Ast, Real, Bool};
 pub use slotmap::{Key, new_key_type, SlotMap, DefaultKey};
 use std::collections::HashMap;
 
-// #[enum_dispatch(Constraint)]
-// trait Make {
-//     fn make(&self) -> Real<'a>;
-// }
-
 impl<'a> Number {
     pub fn to_z3_real(&self, context: &'a z3::Context) -> Real<'a> {
         z3::ast::Real::from_real(context, self.num, self.den)
     }
+}
+
+fn and<'a, 'b>(context: &'a z3::Context, exprs: impl IntoIterator<Item = &'b Bool<'a>>) -> Bool<'a>
+where
+    'a: 'b,
+{
+    let exprs: Vec<&_> = exprs.into_iter().collect();
+    // let m = Bool::from_bool(context, true);
+    Bool::and(context, &exprs)
 }
 
 pub fn get_value<'a>(var: &Var, context: &'a z3::Context, sm: &'a SlotMap<DefaultKey, Real<'a>>, keys: &HashMap<Id, DefaultKey>) 
@@ -23,18 +27,16 @@ pub fn get_value<'a>(var: &Var, context: &'a z3::Context, sm: &'a SlotMap<Defaul
         VarType::Inferred => { panic!("inferred var!"); }
         VarType::Terminal => {
             let id = var.terminal_var.as_ref().unwrap().id.clone();
-            // &sm[keys[&id.to_string()]]
             sm[keys[&id]].clone()
         }
+        VarType::Constant => {
+            let constant = var.constant_var.as_ref().unwrap(); 
+            constant.val.to_z3_real(context)
+        }
         VarType::Intermediate => {
-            // panic!();
             let v = var.intermediate_var.as_ref().unwrap();
             let l = get_value(&v.l, context, sm, keys);
-            // l = sm.insert(l);
-            // l = sm[l];
             let r = get_value(&v.r, context, sm, keys);
-            // r = sm.insert(r);
-            // r = sm[r];
             match v.op {
                 Operator::Add => { 
                     z3::ast::Real::<'a>::add(context,&[&l,&r])
@@ -49,10 +51,6 @@ pub fn get_value<'a>(var: &Var, context: &'a z3::Context, sm: &'a SlotMap<Defaul
                     z3::ast::Real::<'a>::mul(context,&[&l,&r])
                 }
             }
-        }
-        VarType::Constant => {
-            let constant = var.constant_var.as_ref().unwrap(); 
-            constant.val.to_z3_real(context)
         }
     }
 }
@@ -73,13 +71,6 @@ pub fn synthesize(
 
     let mut keys = HashMap::new(); // Id to Slotmap Key
 
-    // declare variables
-    // // for c in spec.vars.iter() {
-    //     Var::NewVar(id) => {
-    //         let v = z3::ast::Real::new_const(context, id.to_string());
-    //         let k = slot_map.insert(v);
-    //         keys.insert(id.to_string(), k);
-    //     }
     println!("initialize the vars");
     for c in spec.vars.iter() {
         println!("{:#?}",&c);
@@ -93,16 +84,6 @@ pub fn synthesize(
             println!("{:#?}",c);
         }
         println!("{:#?}",c);
-        // match c {
-        //     Constraint::NewVar(id) => {
-        //             let v = z3::ast::Real::new_const(context, id.to_string());
-        //             let k = slot_map.insert(v);
-        //             keys.insert(id.clone(), k);
-        //     }
-        //     Constraint::Const(_, _) => { }
-        //     // Constraint::Eq(_, _) => { }
-        //     Constraint::EqualVar(_, _) => { }
-        // };
     }
 
 
@@ -112,9 +93,6 @@ pub fn synthesize(
     for c in spec.constraints.iter() {
     // for c in spec.constraints {
         let f = match c {
-            // Constraint::NewVar(_) => {
-            //     Bool::from_bool(context, true)
-            // }
             Constraint::Const(id, value) => { 
                 // z3::ast::Real 
                 let v = &slot_map[keys[&id]];
@@ -149,13 +127,10 @@ pub fn synthesize(
                 let id = v.id.clone();
                 let k = keys[&id];
                 let z3_val = &slot_map[k];
-                // let tmp = model.eval(v, true).unwrap().as_real();
                 let tmp = model.eval(z3_val, true).unwrap().as_real();
                 if let Some(val) = tmp {
-                    // println!("Id {}: {}", id, val.0/val.1);
-                    let val = Number::from( (val.0/val.1) as f64 );
+                    let val = Number::from( (val.0 as f64)/(val.1 as f64));
                     v.val = Some(val);
-                    // println!("Id {}", id);
                 } else {
                     println!("Id {}: not exist", id);
                 }
@@ -163,15 +138,6 @@ pub fn synthesize(
             Ok(0)
         }
     }
-}
-
-fn and<'a, 'b>(context: &'a z3::Context, exprs: impl IntoIterator<Item = &'b Bool<'a>>) -> Bool<'a>
-where
-    'a: 'b,
-{
-    let exprs: Vec<&_> = exprs.into_iter().collect();
-    // let m = Bool::from_bool(context, true);
-    Bool::and(context, &exprs)
 }
 
 #[derive(Debug)]

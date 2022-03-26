@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::core::data::*;
-use crate::core::shape::Shape;
+use crate::core::SVG::Shape;
 use crate::core::proc::Builder;
 
 pub struct Point {
@@ -79,6 +79,6 @@ impl Rectangle {
     }
 }
 
-impl Shape for Rectangle {
+// impl Shape for Rectangle {
 
-}
+// }

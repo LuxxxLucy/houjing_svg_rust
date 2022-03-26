@@ -3,6 +3,7 @@ mod synthesis;
 use crate::core::geometry::{Circle, Rectangle};
 use crate::core::proc::Builder;
 use crate::core::data::*;
+use crate::core::SVG::*;
 use crate::synthesis::solver;
 use crate::solver::synthesize;
 
@@ -55,6 +56,10 @@ fn main() {
 
     let mut spec = builder.all();
     let _ = synthesize(&mut spec);
+
+    spec.nodes.push(Box::new(bg));
+    spec.nodes.push(Box::new(circle));
+    spec.nodes.push(Box::new(rect));
 
     for var in spec.vars.iter_mut() {
         let v = var.terminal_var.as_ref().unwrap();

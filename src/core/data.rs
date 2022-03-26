@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::core::shape::Shape;
+use crate::core::SVG::Shape;
 
 use std;
 use num::Integer;
@@ -48,11 +48,11 @@ impl From<f64> for Number {
         if (n - n.round()).abs() < std::f64::EPSILON { 
             return Number::new(n.round() as i32 ,1)
         }
-        let mut a : i32 = 0;
-        let mut b : i32 = 1;
-        let mut c : i32 = n.ceil() as i32;
-        let mut d : i32 = 1;
-        let aux1 = i32::max_value()/2;
+        let mut a : i64 = 0;
+        let mut b : i64 = 1;
+        let mut c : i64 = n.ceil() as i64;
+        let mut d : i64 = 1;
+        let aux1 = i64::max_value()/2;
         while c < aux1  && d < aux1 {
             let aux2 : f64 = (a as f64 + c as f64)/(b as f64 + d as f64);
             if (n - aux2).abs() < std::f64::EPSILON { break } 
@@ -66,13 +66,19 @@ impl From<f64> for Number {
         }
         let gcd = (a+c).gcd(&(b+d));
         if flag_neg { 
-            Number::new(-(a + c)/gcd, (b + d)/gcd)
+            Number::new( (-(a + c)/gcd) as i32, ((b + d)/gcd) as i32 )
         } else {
-            Number::new((a + c)/gcd, (b + d)/gcd)
+            Number::new(((a + c)/gcd)  as i32, ((b + d)/gcd) as i32)
         }
       
     }
 }
+
+// impl Into<f64> for Number {
+//     fn into(self) -> f64 {
+//         (self.num as f64) / (self.den as f64)
+//     }
+// }
 
 impl ToVar for f64 {
     fn to_var(&self) -> Var {
@@ -123,7 +129,7 @@ impl Number {
 
 impl std::fmt::Display for Number {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:.2} = {}/{}", (self.num/self.den) as f32, self.num, self.den)
+        write!(f, "{:.2} = {}/{}", (self.num as f64)/(self.den as f64), self.num, self.den)
     }
 }
 
@@ -308,12 +314,12 @@ impl std::fmt::Display for Constraint {
     }
 }
 
-
 pub struct Spec {
     pub constraints: Vec<Constraint>,
     pub num_constraints: usize,
     pub vars: Vec<Var>,
     pub num_unique_vars: usize,
+
     pub nodes: Vec<Box<dyn Shape>>,
 }
 

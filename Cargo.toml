@@ -3,13 +3,10 @@ name = "houjing"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-enum_dispatch = "0.3.8"
-svg = "0.10.0"
+tagger = "4.3.3"
 slotmap = "1.0.2"
-num-rational = "0.4.0" # for converting a float into a factional rational (approximation)
+num-rational = "0.4.0" 
 num = "0.4"
 z3 = {version="0.11.2", features = ["static-link-z3"]}
 log = "0.4"
