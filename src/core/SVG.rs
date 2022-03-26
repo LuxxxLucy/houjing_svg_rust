@@ -8,49 +8,37 @@ use std;
 
 pub type TaggerResult = std::result::Result<(), std::fmt::Error>;
 pub trait Shape {
-    // fn draw<T: std::fmt::Write>(&self, w: &mut tagger::ElemWriter<T>) -> TaggerResult;
+    fn svg_tag(&self) -> &str;
+    // fn svg_attr_vals(&self) -> Vec<(String, f64)>;
 }
 
 impl Shape for Circle {
-    // fn draw(&self) -> Box<element::Circle> {
-//     fn draw(&self) -> Box<dyn svg::node::Node> {
-//         Box::new(element::Circle::new().set("cx", 100 as i32 ).set("cy", 100 as i32).set("r", 50 as i32))
-//     }
+    fn svg_tag(&self) -> &str {
+        "circle"
+    }
+    // fn svg_attr_vals(&self) -> Vec<(String, f64)> {
+
+    // }
 }
 
-//     // fn draw(&self) -> element::Rectangle {
-//     fn draw(&self) -> Box<dyn svg::node::Node> {
-//         Box::new(svg::node::element::Rectangle::new().set("x", 50 as i32).set("y", 50 as i32).set("height", 100 as i32).set("width", 100 as i32))
-//     }
 impl Shape for Rectangle {
+    fn svg_tag(&self) -> &str {
+        "rect"
+    }
+    // fn svg_attr_vals(&self) -> Vec<(String, f64)> {
+
+    // }
 }
 
-// impl geometry::Circle {
-// }
-
-// impl geometry::Rectangle {
-// }
-
-// impl Var {
-//     pub fn get_val(&mut self) -> f64 {
-//         self.terminal_var.as_mut().unwrap().val.unwrap().into()
-//     }
-// }
-
-// impl Rectangle {
-// impl Shape for Rectangle {
-//     fn draw<T: std::fmt::Write>(&self, w: &mut tagger::ElemWriter<T>) -> TaggerResult {
-//         w.single("rect", |d| {
-//             d.attr("x", 0)?;
-//             d.attr("y", 0)?;
-//             // d.attr("rx", 20)?;
-//             // d.attr("ry", 20)?;
-//             d.attr("width", 100)?;
-//             d.attr("height", 100)?;
-//             d.attr("style", "fill:blue")
-//         })
-//     }
-// }
+fn draw<T: std::fmt::Write>(w: &mut tagger::ElemWriter<T>, x: &dyn Shape) -> TaggerResult {
+    let attrs = vec!(("x", 0), ("y", 0), ("width", 100), ("height", 100));
+    w.single(x.svg_tag(), |d| {
+        for attr in attrs.iter() {
+            d.attr(attr.0, attr.1)?;
+        }
+        d.attr("style", "fill:none; stroke: black; stroke-width: 3")
+    })
+}
 
 impl Spec {
     pub fn draw(&self) -> TaggerResult {
@@ -67,20 +55,16 @@ impl Spec {
     })?
     .build(|w| {
         for i in self.nodes.iter() {
-            w.single("rect", |d| {
-                d.attr("x", 0)?;
-                d.attr("y", 0)?;
-                // d.attr("rx", 20)?;
-                // d.attr("ry", 20)?;
-                d.attr("width", 100)?;
-                d.attr("height", 100)?;
-                d.attr("style", "fill:blue")
-            })?;
+            let i_ref: &dyn Shape = i.as_ref();
+            draw(w, i_ref)?;
+            // w.single("rect", |d| {
+            //     d.attr("x", 0)?;
+            //     d.attr("y", 0)?;
+            //     d.attr("width", 100)?;
+            //     d.attr("height", 100)?;
+            //     d.attr("style", "fill:blue")
+            // })?;
         }
-
-        w.elem("style", tagger::no_attr())?
-            .build(|w| w.put_raw(".test{fill:none;stroke:white;stroke-width:3}"))?;
-        
         Ok(())
     })
     }
@@ -128,7 +112,7 @@ mod tests {
         })?;
 
         w.elem("style", tagger::no_attr())?
-            .build(|w| w.put_raw(".test{fill:none;stroke:white;stroke-width:3}"))?;
+            .build(|w| w.put_raw("{fill:none;stroke:white;stroke-width:3}"))?;
 
         w.elem("g", |d| d.attr("class", "test"))?.build(|w| {
             for r in (0..50).step_by(10) {

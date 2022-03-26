@@ -1,8 +1,14 @@
 #![allow(dead_code)]
 
 use crate::core::data::*;
-use crate::core::SVG::Shape;
 use crate::core::proc::Builder;
+
+pub trait Shape {
+}
+
+impl Shape for Point {}
+impl Shape for Circle {}
+impl Shape for Rectangle {}
 
 pub struct Point {
     x: Var,

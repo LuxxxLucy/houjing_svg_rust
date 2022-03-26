@@ -1,8 +1,9 @@
 use crate::core::data::*;
 use crate::core::data::Constraint;
+use crate::core::SVG::Shape;
 
 pub struct Builder {
-    spec: Spec,
+    pub spec: Spec,
     // components: Vec<Box<dyn Shape>>,
 }
 
@@ -19,8 +20,8 @@ impl Builder {
         self.spec.num_constraints += 1;
     }
 
-    // pub fn add_var(&mut self, c: dyn Shape) {
-    //     // self.components.push(Box::new(c));
+    // pub fn add_node(&mut self, c: &dyn Shape) {
+    //     self.spec.nodes.push(Box::new(c.clone()));
     // }
 
     pub fn add_var(&mut self, c: Var) {
@@ -57,6 +58,7 @@ impl Builder {
             self.spec.num_constraints,
             self.spec.vars.clone(),
             self.spec.num_unique_vars,
+            // self.spec.nodes
         )
     } 
 }

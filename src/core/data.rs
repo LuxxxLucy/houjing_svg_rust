@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use crate::core::SVG::Shape;
+// use crate::core::geometry::Shape;
 
 use std;
 use num::Integer;
