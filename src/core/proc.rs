@@ -4,14 +4,12 @@ use crate::core::SVG::Shape;
 
 pub struct Builder {
     pub spec: Spec,
-    // components: Vec<Box<dyn Shape>>,
 }
 
 impl Builder {
     pub fn new() -> Self {
         Builder {
             spec: Spec::empty(),
-            // components: Vec<Box<dyn Shape>>::new()
         }
     }
 
@@ -26,11 +24,9 @@ impl Builder {
 
     pub fn add_var(&mut self, c: Var) {
         self.spec.vars.push(c);
-        // self.add_constraint(c);
     }
 
     pub fn new_var_(&mut self) -> Var {
-        // let k = Id { data: self.spec.num_unique_vars as usize, description: None };
         let id = self.spec.num_unique_vars as usize;
         let k = Id::new(id);
         let var = k.to_var();
@@ -52,13 +48,16 @@ impl Builder {
         self.add_constraint(Constraint::EqualVar(a, b));
     }
 
+    pub fn gt_val_(&mut self, a: Var, b: Var) {
+        self.add_constraint(Constraint::GT(a, b));
+    }
+
     pub fn all(&self) -> Spec {
         Spec::new(
             self.spec.constraints.clone(),
             self.spec.num_constraints,
             self.spec.vars.clone(),
             self.spec.num_unique_vars,
-            // self.spec.nodes
         )
     } 
 }

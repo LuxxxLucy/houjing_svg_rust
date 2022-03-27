@@ -3,10 +3,12 @@ use z3;
 use z3::ast::{Ast, Real, Bool};
 pub use slotmap::{Key, new_key_type, SlotMap, DefaultKey};
 use std::collections::HashMap;
+use rug::Rational;
 
 impl<'a> Number {
     pub fn to_z3_real(&self, context: &'a z3::Context) -> Real<'a> {
-        z3::ast::Real::from_real(context, self.num, self.den)
+        let (num, den) = self.get_num_den();
+        z3::ast::Real::from_real(context, num, den)
     }
 }
 
@@ -46,6 +48,7 @@ pub fn get_value<'a>(var: &Var, context: &'a z3::Context, sm: &'a SlotMap<Defaul
                 }
                 Operator::Div => { 
                     l.div(&r)
+                    // z3::ast::Real::<'a>::div(context,&[&l,&r])
                 }
                 Operator::Mul=> { 
                     z3::ast::Real::<'a>::mul(context,&[&l,&r])
@@ -104,6 +107,11 @@ pub fn synthesize(
                 let v2 = get_value(var2, &context, &slot_map, &keys);
                 v1._eq(&v2)
             }
+            Constraint::GT(var1, var2) => {
+                let v1 = get_value(var1, &context, &slot_map, &keys);
+                let v2 = get_value(var2, &context, &slot_map, &keys);
+                v1.gt(&v2)
+            }
         };
         // let f = c.make();
         formulas.push(f);
@@ -123,13 +131,20 @@ pub fn synthesize(
             // for idx in 0..spec.num_unique_vars {
             for var in spec.vars.iter_mut() {
                 assert_eq!(var.var_type, VarType::Terminal);
+                var.var_type = VarType::Inferred;
                 let v = var.terminal_var.as_mut().unwrap();
                 let id = v.id.clone();
                 let k = keys[&id];
                 let z3_val = &slot_map[k];
                 let tmp = model.eval(z3_val, true).unwrap().as_real();
                 if let Some(val) = tmp {
+                    println!("raw value is {} / {}", val.0 , val.1);
+                    println!("raw value is {} / {}", (val.0 as i32) , (val.1 as i32));
+                    println!("raw value is {}", val.0 / val.1);
+                    println!("raw value is {}", (val.0 as f64) / (val.1 as f64));
                     let val = Number::from( (val.0 as f64)/(val.1 as f64));
+                    // let val = Number::from( (val.0/val.1) as f64);
+                    println!("this value is {}", &val);
                     v.val = Some(val);
                 } else {
                     println!("Id {}: not exist", id);

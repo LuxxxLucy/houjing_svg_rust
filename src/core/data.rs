@@ -4,11 +4,10 @@ use crate::core::SVG::Shape;
 // use crate::core::geometry::Shape;
 
 use std;
-use num::Integer;
+// use num::Integer;
 pub use slotmap::{Key, new_key_type};
 use std::hash::{Hash, Hasher};
-// use num_rational::Ratio;
-// use num_rational::*;
+use rug::Rational;
 
 #[derive(Debug)]
 pub enum Error {
@@ -34,52 +33,13 @@ impl ToVar for i32 {
 
 impl From<f64> for Number {
     fn from(n: f64) -> Number {
-        // DISCLAIMER:
-        // this code adopted from Rosetta Code for transforming a float into a rational
-        // https://rosettacode.org/mw/index.php?title=Convert_decimal_number_to_rational&action=edit&section=52
-
-        let mut n = n;
-        assert!(n.is_finite());
-        let flag_neg  = n < 0.0;
-        if flag_neg { n = n*(-1.0) }
-        if n < std::f64::MIN_POSITIVE { 
-            // return [0,1] 
-            return Number::new(0,1)
+        // we are just going to use f32.
+        let n_f32 = Rational::from_f64(n).unwrap().to_f32();
+        Number {
+            data: Rational::from_f32(n_f32).unwrap()
         }
-        if (n - n.round()).abs() < std::f64::EPSILON { 
-            return Number::new(n.round() as i32 ,1)
-        }
-        let mut a : i64 = 0;
-        let mut b : i64 = 1;
-        let mut c : i64 = n.ceil() as i64;
-        let mut d : i64 = 1;
-        let aux1 = i64::max_value()/2;
-        while c < aux1  && d < aux1 {
-            let aux2 : f64 = (a as f64 + c as f64)/(b as f64 + d as f64);
-            if (n - aux2).abs() < std::f64::EPSILON { break } 
-            if n > aux2 { 
-                a = a + c;
-                b = b + d;
-            } else {
-                c = a + c;
-                d = b + d;
-            }
-        }
-        let gcd = (a+c).gcd(&(b+d));
-        if flag_neg { 
-            Number::new( (-(a + c)/gcd) as i32, ((b + d)/gcd) as i32 )
-        } else {
-            Number::new(((a + c)/gcd)  as i32, ((b + d)/gcd) as i32)
-        }
-      
     }
 }
-
-// impl Into<f64> for Number {
-//     fn into(self) -> f64 {
-//         (self.num as f64) / (self.den as f64)
-//     }
-// }
 
 impl ToVar for f64 {
     fn to_var(&self) -> Var {
@@ -88,17 +48,17 @@ impl ToVar for f64 {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Number {
-    // representing a real number = num / den
-    pub num: i32,
-    pub den: i32,
-    // pub data: f,
+    // representing a arbitray precision number
+    pub data: Rational,
 }
 
 impl From<i32> for Number {
     fn from(i: i32) -> Self {
-        Number::new(i,1)
+        Number {
+            data: Rational::from((i as i32, 1))
+        }
     }
 }
 
@@ -109,10 +69,17 @@ impl From<i32> for Number {
 // }
 
 impl Number {
+
+    pub fn get_num_den(&self) -> (i32, i32) {
+        // let (num, den) = Rational::from(self.data.recip_ref()).into_numer_denom();
+        let (num, den) = self.data.clone().into_numer_denom();
+        let num = num.to_i32().unwrap();
+        let den = den.to_i32().unwrap();
+        (num, den)
+    }
     pub fn new(n: i32, d: i32) -> Self {
         Number {
-            num: n,
-            den: d
+            data: Rational::from((n, d))
         }
     }
 
@@ -126,11 +93,16 @@ impl Number {
             }),
         }
     }
+
+    pub fn to_f64(&self) -> f64 {
+        self.data.to_f64()
+    }
 }
 
 impl std::fmt::Display for Number {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:.2} = {}/{}", (self.num as f64)/(self.den as f64), self.num, self.den)
+        let (num, den) = self.get_num_den();
+        write!(f, "{:.2} = {}/{}", self.data.to_f64(), num, den)
     }
 }
 
@@ -261,6 +233,34 @@ impl Var {
     }
 }
 
+impl std::fmt::Display for Var {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match &self.var_type {
+            VarType::Undefined => {
+                write!(f, "Undefine Var!")
+            }
+            VarType::Terminal => {
+                write!(f, "An terminal Var!")
+            }
+            VarType::Intermediate => {
+                write!(f, "An intermediate Var!")
+            }
+            VarType::Constant => {
+                write!(f, "An Constant Var!")
+            }
+            VarType::Inferred => {
+                let tmp = self.terminal_var.as_ref().unwrap();
+                let id = &tmp.id;
+                if let Some(val) = &tmp.val {
+                    write!(f, "An Inferred Var! Id: {} Value: {:.2} ", id, val)
+                } else {
+                    write!(f, "An Inferred Var! Id: {} but with no inferred value (None)", id)
+                }
+            }
+        }
+    }
+}
+
 // impl From<Id> for Var {
 //     fn from(id: Id) -> Self {
 //         Var {
@@ -296,7 +296,8 @@ impl std::ops::Mul<Var> for Var {
 #[derive(Clone, Debug)]
 pub enum Constraint {
     Const(Id, Number),
-    EqualVar(Var, Var)
+    EqualVar(Var, Var),
+    GT(Var, Var),
 }
 
 impl std::fmt::Display for Constraint {
@@ -311,14 +312,19 @@ impl std::fmt::Display for Constraint {
             Constraint::EqualVar(v1, v2) =>  {
                 write!(f, "Var {:#?} == Var {:#?}", v1, v2)
             }
+            Constraint::GT(v1, v2) => {
+                write!(f, "Var {:#?} >= Var {:#?}", v1, v2)
+            }
         }
     }
 }
 
+pub type VarContainer = Vec<Var>;
+
 pub struct Spec {
     pub constraints: Vec<Constraint>,
     pub num_constraints: usize,
-    pub vars: Vec<Var>,
+    pub vars: VarContainer,
     pub num_unique_vars: usize,
 
     pub nodes: Vec<Box<dyn Shape>>,
@@ -336,7 +342,7 @@ impl std::fmt::Display for Spec {
 }
 
 impl Spec {
-    pub fn new(c: Vec<Constraint>, n_c: usize, v: Vec<Var>, n_u_v: usize) -> Self {
+    pub fn new(c: Vec<Constraint>, n_c: usize, v: VarContainer, n_u_v: usize) -> Self {
         Spec {
             constraints: c,
             num_constraints: n_c,
@@ -353,6 +359,14 @@ impl Spec {
             vars: vec![],
             num_unique_vars: 0,
             nodes: vec![]
+        }
+    }
+
+    pub fn set_values_to(&mut self) {
+        
+        let vars = &self.vars;
+        for n in self.nodes.iter_mut() {
+            n.set_inferred_data(vars);
         }
     }
 

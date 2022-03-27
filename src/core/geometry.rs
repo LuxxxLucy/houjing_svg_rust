@@ -3,12 +3,23 @@
 use crate::core::data::*;
 use crate::core::proc::Builder;
 
-pub trait Shape {
-}
+use crate::core::SVG::Shape;
 
-impl Shape for Point {}
-impl Shape for Circle {}
-impl Shape for Rectangle {}
+// pub trait Data {
+//     pub fn set_inferred_data(&self, vc: &VarContainer);
+// }
+
+// impl Data for Point {
+// impl Shape for Point {
+//     fn set_inferred_data(&self, vc: &VarContainer) {
+//         println!("set data Point");
+//     }
+// }
+// impl Shape for Circle {
+
+// }
+// impl Shape for Rectangle {
+// }
 
 pub struct Point {
     x: Var,
@@ -28,6 +39,7 @@ pub struct Circle {
     pub x: Var,
     pub y: Var,
     pub radius: Var,
+    pub attrs: Vec<(String, f64)>,
 }
 
 impl Circle {
@@ -36,6 +48,7 @@ impl Circle {
             x: builder.new_var_named_("circle x"),
             y: builder.new_var_named_("circle y"),
             radius: builder.new_var_named_("circle radius"),
+            attrs: vec![],
         }
     }
 }
@@ -54,6 +67,7 @@ pub struct Rectangle {
     pub y: Var,
     pub width: Var,
     pub height: Var,
+    pub attrs: Vec<(String, f64)>,
 }
 
 impl Rectangle {
@@ -64,6 +78,7 @@ impl Rectangle {
             y: builder.new_var_named_("rectangle y"),
             width: builder.new_var_named_("rectangle width"),
             height: builder.new_var_named_("rectangle height"),
+            attrs: vec![],
         }
     }
 }
@@ -72,19 +87,14 @@ impl Rectangle {
     pub fn center_x(&self) -> Var {
         let l = self.x.clone();
         let r = self.width.clone();
-        let t = l + r;
         let c = 2.to_var();
-        t / c
+        l + r / c
     }
     pub fn center_y(&self) -> Var {
         let l = self.y.clone();
         let r = self.height.clone();
-        let t = l + r;
+        // let t = l + r;
         let c = 2.to_var();
-        t / c
+        l + r / c
     }
 }
-
-// impl Shape for Rectangle {
-
-// }
